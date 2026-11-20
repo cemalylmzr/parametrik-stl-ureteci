@@ -8,7 +8,12 @@ import {
   Scale,
   Triangle,
 } from 'lucide-react';
-import { MATERIALS, MaterialType, MeshStats } from '../geometry/types';
+import {
+  FLASHFORGE_AD5X_BED,
+  MATERIALS,
+  MaterialType,
+  MeshStats,
+} from '../geometry/types';
 
 interface MeshStatsBarProps {
   stats: MeshStats;
@@ -25,7 +30,7 @@ export const MeshStatsBar: React.FC<MeshStatsBarProps> = ({
 
   return (
     <footer className="h-11 shrink-0 bg-[#0e141c] border-t border-slate-800/90 px-4 flex items-center justify-between gap-4 text-xs overflow-x-auto">
-      {/* Sol Grup: Dış Ölçüler ve Ender 3 V2 Uyumluluk */}
+      {/* Sol Grup: Dış Ölçüler ve Flashforge AD5X Uyumluluk */}
       <div className="flex items-center gap-4 shrink-0">
         <div className="flex items-center gap-2" title="Dış Sınır Kutusu (Bounding Box)">
           <Ruler className="w-3.5 h-3.5 text-slate-500" />
@@ -47,14 +52,14 @@ export const MeshStatsBar: React.FC<MeshStatsBarProps> = ({
 
         <div
           className={`flex items-center gap-1.5 px-2 py-0.5 rounded font-medium text-[11px] ${
-            stats.fitsEnder3V2
+            stats.fitsPrinter
               ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25'
               : 'bg-rose-500/15 text-rose-300 border border-rose-500/35'
           }`}
-          title="Ender 3 V2 Baskı Hacmi: 220 × 220 × 250 mm"
+          title={`${FLASHFORGE_AD5X_BED.name} CoreXY Baskı Hacmi: ${FLASHFORGE_AD5X_BED.x} × ${FLASHFORGE_AD5X_BED.y} × ${FLASHFORGE_AD5X_BED.z} mm`}
         >
           <Cpu className="w-3 h-3" />
-          {stats.fitsEnder3V2 ? 'Ender 3 V2 Uygun' : 'Tabla Sınırını Aşıyor'}
+          {stats.fitsPrinter ? 'Flashforge AD5X Uygun' : 'Tabla Sınırını Aşıyor'}
         </div>
       </div>
 

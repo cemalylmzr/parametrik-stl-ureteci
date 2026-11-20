@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
+const EXPORTS_DIR = path.join(ROOT_DIR, 'exports');
 
 const PREFERRED_PORT = 4173;
 const APP_ID = 'parametric-stl-generator-v1';
@@ -127,6 +128,36 @@ function startServer() {
     if (pathname === '/__health') {
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end(APP_ID);
+      return;
+    }
+
+    if (pathname === '/__save-stl' && req.method === 'POST') {
+      const rawName = reqUrl.searchParams.get('name') || 'model.stl';
+      const baseName = path.basename(rawName).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const safeName = baseName.toLowerCase().endsWith('.stl')
+        ? baseName
+        : `${baseName}.stl`;
+
+      const chunks = [];
+      let totalBytes = 0;
+      const MAX_BYTES = 100 * 1024 * 1024; // 100 MB güvenlik limiti
+
+      req.on('data', (chunk) => {
+        totalBytes += chunk.length;
+        if (totalBytes <= MAX_BYTES) chunks.push(chunk);
+      });
+      req.on('end', () => {
+        try {
+          fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+          const targetPath = path.join(EXPORTS_DIR, safeName);
+          fs.writeFileSync(targetPath, Buffer.concat(chunks));
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ saved: true, path: targetPath }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ saved: false, error: String(err) }));
+        }
+      });
       return;
     }
 

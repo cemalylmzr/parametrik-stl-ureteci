@@ -9,7 +9,7 @@ import {
   Maximize2,
   Printer,
 } from 'lucide-react';
-import { ENDER3_V2_BED, ViewportOptions } from '../geometry/types';
+import { FLASHFORGE_AD5X_BED, ViewportOptions } from '../geometry/types';
 
 interface Viewport3DProps {
   geometry: THREE.BufferGeometry;
@@ -74,15 +74,18 @@ function buildCadGridGroup(): THREE.Group {
 }
 
 /**
- * Ender 3 V2 (220 x 220 mm) baskı tablası referans çerçevesi.
+ * Flashforge AD5X (220 × 220 × 220 mm) CoreXY baskı tablası referans çerçevesi.
  */
-function buildEnder3BedGroup(): THREE.Group {
+function buildPrinterBedGroup(): THREE.Group {
   const group = new THREE.Group();
-  const hx = ENDER3_V2_BED.x * 0.5;
-  const hy = ENDER3_V2_BED.y * 0.5;
+  const hx = FLASHFORGE_AD5X_BED.x * 0.5;
+  const hy = FLASHFORGE_AD5X_BED.y * 0.5;
 
   // Yarı saydam tabla yüzeyi
-  const bedGeo = new THREE.PlaneGeometry(ENDER3_V2_BED.x, ENDER3_V2_BED.y);
+  const bedGeo = new THREE.PlaneGeometry(
+    FLASHFORGE_AD5X_BED.x,
+    FLASHFORGE_AD5X_BED.y
+  );
   const bedMat = new THREE.MeshBasicMaterial({
     color: 0x0f1722,
     transparent: true,
@@ -221,12 +224,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     rimLight.position.set(0, 180, -60);
     scene.add(rimLight);
 
-    // 10mm / 50mm CAD ızgarası, Ender 3 V2 tablası, eksenler
+    // 10mm / 50mm CAD ızgarası, Flashforge AD5X tablası, eksenler
     const gridGroup = buildCadGridGroup();
     gridGroupRef.current = gridGroup;
     scene.add(gridGroup);
 
-    const bedGroup = buildEnder3BedGroup();
+    const bedGroup = buildPrinterBedGroup();
     bedGroupRef.current = bedGroup;
     scene.add(bedGroup);
 
@@ -452,7 +455,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               onClick={() =>
                 onOptionsChange({ showBuildPlate: !options.showBuildPlate })
               }
-              title="Ender 3 V2 Baskı Tablası (220×220 mm)"
+              title="Flashforge AD5X Baskı Tablası (220×220×220 mm)"
               className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 transition-colors ${
                 options.showBuildPlate
                   ? 'bg-cyan-500/15 text-cyan-300'
@@ -460,7 +463,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               }`}
             >
               <Printer className="w-3.5 h-3.5" />
-              Ender 3
+              AD5X
             </button>
 
             <button

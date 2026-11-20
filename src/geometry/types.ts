@@ -1,6 +1,6 @@
 export type PartCategory = 'sieve' | 'box' | 'plate' | 'fastener';
 
-export type MaterialType = 'PLA' | 'PETG' | 'ABS' | 'TPU';
+export type MaterialType = 'PLA' | 'PETG' | 'ABS' | 'ASA' | 'TPU';
 
 export interface MaterialSpec {
   id: MaterialType;
@@ -15,29 +15,36 @@ export const MATERIALS: Record<MaterialType, MaterialSpec> = {
     id: 'PLA',
     label: 'PLA',
     densityGPerCm3: 1.24,
-    nozzleTempC: '200°C',
-    bedTempC: '60°C',
+    nozzleTempC: '215°C',
+    bedTempC: '55°C',
   },
   PETG: {
     id: 'PETG',
     label: 'PETG',
     densityGPerCm3: 1.27,
-    nozzleTempC: '235°C',
-    bedTempC: '80°C',
+    nozzleTempC: '245°C',
+    bedTempC: '75°C',
   },
   ABS: {
     id: 'ABS',
     label: 'ABS',
     densityGPerCm3: 1.04,
-    nozzleTempC: '245°C',
+    nozzleTempC: '255°C',
+    bedTempC: '100°C',
+  },
+  ASA: {
+    id: 'ASA',
+    label: 'ASA',
+    densityGPerCm3: 1.07,
+    nozzleTempC: '255°C',
     bedTempC: '100°C',
   },
   TPU: {
     id: 'TPU',
     label: 'TPU',
     densityGPerCm3: 1.21,
-    nozzleTempC: '220°C',
-    bedTempC: '50°C',
+    nozzleTempC: '225°C',
+    bedTempC: '45°C',
   },
 };
 
@@ -163,7 +170,7 @@ export interface MeshStats {
   isWatertight: boolean;
   openEdges: number;
   nonManifoldEdges: number;
-  fitsEnder3V2: boolean;
+  fitsPrinter: boolean;
   warnings: string[];
 }
 
@@ -206,14 +213,14 @@ export const DEFAULT_BOX_PARAMS: ParametricBoxParams = {
   lidMode: 'both',
   lidThickness: 2.4,
   lipHeight: 4.0,
-  lipTolerance: 0.25,
+  lipTolerance: 0.2,
   ventSlots: true,
   ventHoleDiameter: 4.0,
   ventHoleRows: 3,
   cableHoleDiameter: 0,
   cableHoleThreaded: false,
   cableHolePitch: 1.75,
-  cableHoleTolerance: 0.35,
+  cableHoleTolerance: 0.3,
 };
 
 export const DEFAULT_PLATE_PARAMS: MountingPlateParams = {
@@ -232,7 +239,7 @@ export const DEFAULT_PLATE_PARAMS: MountingPlateParams = {
   standoffHeight: 6.0,
   standoffOuterDiameter: 11.0,
   threadPitch: 1.5,
-  threadTolerance: 0.35,
+  threadTolerance: 0.3,
   centerCutout: 'circle',
   centerCutoutWidth: 40,
   centerCutoutDepth: 40,
@@ -251,7 +258,7 @@ export const DEFAULT_FASTENER_PARAMS: FastenerParams = {
   mode: 'bolt',
   threadDiameter: 10,
   threadPitch: 1.75,
-  threadTolerance: 0.35,
+  threadTolerance: 0.3,
   boltHeadType: 'hex',
   boltHeadSize: 17,
   boltHeadHeight: 6.5,
@@ -267,14 +274,14 @@ export const DEFAULT_FASTENER_PARAMS: FastenerParams = {
   jarWallThickness: 2.6,
   jarThreadHeight: 11,
   jarThreadPitch: 3.0,
-  jarThreadTolerance: 0.4,
+  jarThreadTolerance: 0.35,
   capTopThickness: 2.8,
   capKnurling: true,
   gearModule: 2.0,
   gearTeeth: 20,
   gearThickness: 8.0,
   gearPressureAngle: 20,
-  gearBacklash: 0.18,
+  gearBacklash: 0.15,
   gearBoreDiameter: 6.0,
   gearBoreShape: 'circle',
   gearHubEnabled: true,
@@ -282,8 +289,13 @@ export const DEFAULT_FASTENER_PARAMS: FastenerParams = {
   gearHubHeight: 5.0,
 };
 
-export const ENDER3_V2_BED = {
+export const FLASHFORGE_AD5X_BED = {
+  name: 'Flashforge AD5X',
+  shortName: 'AD5X',
   x: 220,
   y: 220,
-  z: 250,
+  z: 220,
+  defaultNozzleMm: 0.4,
+  snapToleranceMm: 0.2,
+  threadToleranceMm: 0.3,
 } as const;

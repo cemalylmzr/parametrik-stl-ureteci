@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ENDER3_V2_BED, MATERIALS, MaterialType, MeshStats } from './types';
+import { FLASHFORGE_AD5X_BED, MATERIALS, MaterialType, MeshStats } from './types';
 import { validateManifold } from './manifoldBuilder';
 
 /**
@@ -14,7 +14,7 @@ import { validateManifold } from './manifoldBuilder';
  */
 export function geometryToBinarySTL(
   geometry: THREE.BufferGeometry,
-  headerLabel = 'Parametric 3D STL Generator - Watertight Binary STL (mm, Z-up)'
+  headerLabel = 'Parametric 3D STL Builder - Flashforge AD5X Watertight Binary STL (mm, Z-up)'
 ): ArrayBuffer {
   const posAttr = geometry.getAttribute('position');
   if (!posAttr) {
@@ -111,12 +111,17 @@ export function geometryToBinarySTL(
 }
 
 /**
- * BufferGeometry'yi Binary STL dosyası olarak tarayıcıdan indirir.
+ * BufferGeometry'yi Binary STL dosyası olarak tarayıcıdan indirir ve
+ * yerel masaüstü sunucusu aktifse aynı zamanda `exports/` dizinine otomatik kaydeder.
  */
 export function downloadBinarySTL(
   geometry: THREE.BufferGeometry,
   filename: string
-): { byteLength: number; triangleCount: number } {
+): {
+  byteLength: number;
+  triangleCount: number;
+  savePromise: Promise<string | null>;
+} {
   const safeName = filename.toLowerCase().endsWith('.stl')
     ? filename
     : `${filename}.stl`;
@@ -134,9 +139,26 @@ export function downloadBinarySTL(
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
+  // Masaüstü uygulaması sunucusu çalışıyorsa exports/ dizinine de doğrudan kaydet
+  const savePromise = fetch(
+    `/__save-stl?name=${encodeURIComponent(safeName)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: buffer,
+    }
+  )
+    .then(async (res) => {
+      if (!res.ok) return null;
+      const data = (await res.json()) as { saved?: boolean; path?: string };
+      return data.saved && data.path ? data.path : null;
+    })
+    .catch(() => null);
+
   return {
     byteLength: buffer.byteLength,
     triangleCount: (buffer.byteLength - 84) / 50,
+    savePromise,
   };
 }
 
@@ -177,15 +199,15 @@ export function computeMeshStats(
   const filamentCrossSectionMm2 = Math.PI * 0.875 * 0.875;
   const estimatedFilamentM = effectivePrintedMm3 / filamentCrossSectionMm2 / 1000;
 
-  const fitsEnder3V2 =
-    sizeX <= ENDER3_V2_BED.x + 0.01 &&
-    sizeY <= ENDER3_V2_BED.y + 0.01 &&
-    sizeZ <= ENDER3_V2_BED.z + 0.01;
+  const fitsPrinter =
+    sizeX <= FLASHFORGE_AD5X_BED.x + 0.01 &&
+    sizeY <= FLASHFORGE_AD5X_BED.y + 0.01 &&
+    sizeZ <= FLASHFORGE_AD5X_BED.z + 0.01;
 
   const warnings = [...extraWarnings];
-  if (!fitsEnder3V2) {
+  if (!fitsPrinter) {
     warnings.push(
-      `Parça Ender 3 V2 baskı alanını (${ENDER3_V2_BED.x}×${ENDER3_V2_BED.y}×${ENDER3_V2_BED.z} mm) aşıyor!`
+      `Parça ${FLASHFORGE_AD5X_BED.name} baskı alanını (${FLASHFORGE_AD5X_BED.x}×${FLASHFORGE_AD5X_BED.y}×${FLASHFORGE_AD5X_BED.z} mm) aşıyor!`
     );
   }
   if (!manifold.isWatertight) {
@@ -208,7 +230,7 @@ export function computeMeshStats(
     isWatertight: manifold.isWatertight,
     openEdges: manifold.openEdges,
     nonManifoldEdges: manifold.nonManifoldEdges,
-    fitsEnder3V2,
+    fitsPrinter,
     warnings,
   };
 }

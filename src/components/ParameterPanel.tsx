@@ -589,7 +589,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
 
               <NumberControl
                 label="FDM Geçme Toleransı"
-                hint="Ender 3: 0.25mm"
+                hint="AD5X: 0.20mm"
                 value={boxParams.lipTolerance}
                 min={0.1}
                 max={0.6}
@@ -874,7 +874,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
                           />
                           <NumberControl
                             label="FDM Diş Boşluğu"
-                            hint="Ender 3: 0.35mm"
+                            hint="AD5X: 0.30mm"
                             value={plateParams.threadTolerance}
                             min={0.15}
                             max={0.7}
@@ -1096,7 +1096,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
                       />
                       <NumberControl
                         label="FDM Diş Boşluğu"
-                        hint="Ender 3: 0.35mm"
+                        hint="AD5X: 0.30mm"
                         value={plateParams.threadTolerance}
                         min={0.15}
                         max={0.7}
@@ -1326,7 +1326,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
                   {fastenerParams.boltIncludeNut && (
                     <NumberControl
                       label="Somun FDM Diş Boşluğu"
-                      hint="Ender 3: 0.35mm"
+                      hint="AD5X: 0.30mm"
                       value={fastenerParams.threadTolerance}
                       min={0.15}
                       max={0.7}
@@ -1403,7 +1403,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
                   />
                   <NumberControl
                     label="FDM Diş Boşluğu"
-                    hint="Ender 3: 0.35mm"
+                    hint="AD5X: 0.30mm"
                     value={fastenerParams.threadTolerance}
                     min={0.15}
                     max={0.7}
@@ -1508,7 +1508,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
                   />
                   <NumberControl
                     label="FDM Diş Toleransı"
-                    hint="Kapak: 0.40mm"
+                    hint="AD5X: 0.35mm"
                     value={fastenerParams.jarThreadTolerance}
                     min={0.2}
                     max={0.8}
