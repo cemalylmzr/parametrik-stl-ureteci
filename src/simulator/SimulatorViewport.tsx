@@ -480,7 +480,7 @@ export const SimulatorViewport: React.FC<SimulatorViewportProps> = ({
 
   return (
     <div
-      className="relative flex-1 h-full w-full bg-[#0b0f14] overflow-hidden select-none"
+      className="relative flex-1 min-w-0 h-full bg-[#0b0f14] overflow-hidden select-none"
       onDragOver={(e) => {
         e.preventDefault();
         setIsDraggingFile(true);

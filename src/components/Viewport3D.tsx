@@ -1,20 +1,30 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
+  AlertOctagon,
   Box,
   Compass,
+  Eye,
   Grid3X3,
   Layers,
   Maximize2,
   Printer,
 } from 'lucide-react';
-import { FLASHFORGE_AD5X_BED, ViewportOptions } from '../geometry/types';
+import {
+  CutoutGhostMesh,
+  FLASHFORGE_AD5X_BED,
+  ViewportOptions,
+} from '../geometry/types';
 
 interface Viewport3DProps {
   geometry: THREE.BufferGeometry;
   options: ViewportOptions;
   onOptionsChange: (next: Partial<ViewportOptions>) => void;
+  fitsPrinter?: boolean;
+  ghostMeshes?: CutoutGhostMesh[];
+  selectedGhostId?: string | null;
+  onSelectGhost?: (holeId: string) => void;
 }
 
 type CameraPreset = 'iso' | 'top' | 'front' | 'right';
@@ -111,7 +121,9 @@ function buildPrinterBedGroup(): THREE.Group {
     transparent: true,
     opacity: 0.55,
   });
-  group.add(new THREE.Line(borderGeo, borderMat));
+  const borderLine = new THREE.Line(borderGeo, borderMat);
+  borderLine.name = 'bedBorderLine';
+  group.add(borderLine);
 
   // Ön taraf (Y-) ok işareti — yazıcının ön yönünü gösterir
   const frontPts = [
@@ -126,7 +138,9 @@ function buildPrinterBedGroup(): THREE.Group {
     transparent: true,
     opacity: 0.7,
   });
-  group.add(new THREE.Line(frontGeo, frontMat));
+  const frontLine = new THREE.Line(frontGeo, frontMat);
+  frontLine.name = 'bedFrontLine';
+  group.add(frontLine);
 
   return group;
 }
@@ -158,6 +172,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   geometry,
   options,
   onOptionsChange,
+  fitsPrinter = true,
+  ghostMeshes,
+  selectedGhostId,
+  onSelectGhost,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -165,9 +183,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const controlsRef = useRef<OrbitControls | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const edgeLinesRef = useRef<THREE.LineSegments | null>(null);
+  const ghostGroupRef = useRef<THREE.Group | null>(null);
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const bedGroupRef = useRef<THREE.Group | null>(null);
   const axesGroupRef = useRef<THREE.Group | null>(null);
+  const onSelectGhostRef = useRef(onSelectGhost);
+  onSelectGhostRef.current = onSelectGhost;
+
+  const [showGhosts, setShowGhosts] = useState(true);
 
   // Sahne, kamera (Z-up) ve OrbitControls kurulumu
   useEffect(() => {
@@ -261,6 +284,52 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     edgeLinesRef.current = edgeLines;
     scene.add(edgeLines);
 
+    // CSG Delik Hayalet Önizleme Grubu
+    const ghostGroup = new THREE.Group();
+    ghostGroupRef.current = ghostGroup;
+    scene.add(ghostGroup);
+
+    // 3D sahnede delik hayaletine tıklayarak sağ panelde seçme (Raycaster)
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    let downX = 0;
+    let downY = 0;
+
+    const onPointerDown = (e: PointerEvent) => {
+      downX = e.clientX;
+      downY = e.clientY;
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
+      if (!ghostGroupRef.current || !onSelectGhostRef.current) return;
+
+      const pickables: THREE.Object3D[] = [];
+      ghostGroupRef.current.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.userData.holeId) {
+          pickables.push(obj);
+        }
+      });
+      if (pickables.length === 0) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObjects(pickables, false);
+      if (hits.length > 0) {
+        const hitId = hits[0].object.userData.holeId as string | undefined;
+        if (hitId) {
+          onSelectGhostRef.current(hitId);
+        }
+      }
+    };
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+
     // ResizeObserver ile akıcı boyutlandırma
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -283,6 +352,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
     return () => {
       cancelAnimationFrame(animId);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
       resizeObserver.disconnect();
       controls.dispose();
 
@@ -311,6 +382,63 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     prevEdgeGeo.dispose();
   }, [geometry]);
 
+  // CSG Delik Hayalet Önizleme (Ghost Preview) mesh'lerini güncelle
+  useEffect(() => {
+    const group = ghostGroupRef.current;
+    if (!group) return;
+
+    while (group.children.length > 0) {
+      const child = group.children[0];
+      group.remove(child);
+      child.traverse((obj) => {
+        if (obj instanceof THREE.LineSegments) {
+          obj.geometry.dispose();
+          (obj.material as THREE.Material).dispose();
+        } else if (obj instanceof THREE.Mesh) {
+          (obj.material as THREE.Material).dispose();
+        }
+      });
+    }
+
+    if (!showGhosts || !ghostMeshes || ghostMeshes.length === 0) return;
+
+    for (const ghost of ghostMeshes) {
+      const isSelected = ghost.id === selectedGhostId;
+      const wrapper = new THREE.Group();
+
+      const fillColor = isSelected
+        ? 0xef4444
+        : ghost.enabled
+          ? 0xf97316
+          : 0x64748b;
+      const fillOpacity = isSelected ? 0.38 : ghost.enabled ? 0.2 : 0.12;
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: fillColor,
+        transparent: true,
+        opacity: fillOpacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(ghost.geometry, mat);
+      mesh.userData.holeId = ghost.id;
+      mesh.renderOrder = isSelected ? 12 : 10;
+      wrapper.add(mesh);
+
+      const outlineGeo = new THREE.EdgesGeometry(ghost.geometry, 22);
+      const outlineMat = new THREE.LineBasicMaterial({
+        color: isSelected ? 0xff4d4d : ghost.enabled ? 0xfb923c : 0x94a3b8,
+        transparent: true,
+        opacity: isSelected ? 0.95 : 0.65,
+      });
+      const outline = new THREE.LineSegments(outlineGeo, outlineMat);
+      outline.renderOrder = isSelected ? 13 : 11;
+      wrapper.add(outline);
+
+      group.add(wrapper);
+    }
+  }, [ghostMeshes, selectedGhostId, showGhosts]);
+
   // Görünüm seçeneklerini güncelle
   useEffect(() => {
     if (meshRef.current) {
@@ -326,11 +454,22 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     }
     if (bedGroupRef.current) {
       bedGroupRef.current.visible = options.showBuildPlate;
+      const border = bedGroupRef.current.getObjectByName('bedBorderLine');
+      const front = bedGroupRef.current.getObjectByName('bedFrontLine');
+      if (border instanceof THREE.Line) {
+        const mat = border.material as THREE.LineBasicMaterial;
+        mat.color.setHex(fitsPrinter ? 0x06b6d4 : 0xef4444);
+        mat.opacity = fitsPrinter ? 0.55 : 0.95;
+      }
+      if (front instanceof THREE.Line) {
+        const mat = front.material as THREE.LineBasicMaterial;
+        mat.color.setHex(fitsPrinter ? 0x22d3ee : 0xef4444);
+      }
     }
     if (axesGroupRef.current) {
       axesGroupRef.current.visible = options.showAxes;
     }
-  }, [options]);
+  }, [options, fitsPrinter]);
 
   const setCameraPreset = (preset: CameraPreset) => {
     const camera = cameraRef.current;
@@ -373,7 +512,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   };
 
   return (
-    <div className="relative flex-1 h-full w-full bg-[#0b0f14] overflow-hidden select-none">
+    <div className="relative flex-1 min-w-0 h-full bg-[#0b0f14] overflow-hidden select-none">
       {/* Three.js Canvas Container */}
       <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
@@ -419,6 +558,16 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {/* Orta Üst: Flashforge AD5X 220x220x220 mm Taşma Kırmızı Uyarısı */}
+        {!fitsPrinter && (
+          <div className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-950/95 border border-rose-500/70 text-rose-100 text-xs font-semibold shadow-xl backdrop-blur-md">
+            <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              BASKI ALANI AŞILDI! Flashforge AD5X (220×220×220 mm) sınırını aşıyor
+            </span>
+          </div>
+        )}
 
         {/* Sağ Üst: Görünüm Araçları (Wireframe, Izgara, Tabla, Eksenler, Renk) */}
         <div className="pointer-events-auto flex flex-col items-end gap-2 ml-auto">
@@ -478,6 +627,21 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               <Compass className="w-3.5 h-3.5" />
               XYZ
             </button>
+
+            {ghostMeshes && ghostMeshes.length > 0 && (
+              <button
+                onClick={() => setShowGhosts((v) => !v)}
+                title="CSG Delik Hayalet Önizlemesini Göster/Gizle (Tıklayarak seçebilirsiniz)"
+                className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 transition-colors ${
+                  showGhosts
+                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Hayalet
+              </button>
+            )}
           </div>
 
           {/* Filament Önizleme Rengi */}

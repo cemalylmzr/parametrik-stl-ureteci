@@ -19,6 +19,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { downloadBinarySTL } from '../geometry/stlExporter';
+import { MATERIALS, MaterialType } from '../geometry/types';
 import {
   AxisKey,
   AutoFixMode,
@@ -121,12 +122,19 @@ const PrecisionSlider: React.FC<PrecisionSliderProps> = ({
   );
 };
 
-export const SimulatorWorkspace: React.FC = () => {
+interface SimulatorWorkspaceProps {
+  material: MaterialType;
+}
+
+export const SimulatorWorkspace: React.FC<SimulatorWorkspaceProps> = ({
+  material,
+}) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const matSpec = MATERIALS[material];
 
   const [parts, setParts] = useState<LoadedSTLPart[]>([]);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
-  const [toleranceMm, setToleranceMm] = useState<number>(0.3);
+  const [toleranceMm, setToleranceMm] = useState<number>(matSpec.toleranceMm);
   const [report, setReport] = useState<CollisionReport>(EMPTY_COLLISION_REPORT);
 
   const [simConfig, setSimConfig] = useState<SimulationConfig>({
@@ -149,9 +157,15 @@ export const SimulatorWorkspace: React.FC = () => {
   // Otomatik Düzeltme ayarları
   const [fixAxis, setFixAxis] = useState<'auto' | AxisKey>('auto');
   const [fixMode, setFixMode] = useState<AutoFixMode>('shrink');
-  const [fixClearanceMm, setFixClearanceMm] = useState<number>(0.2);
+  const [fixClearanceMm, setFixClearanceMm] = useState<number>(matSpec.toleranceMm);
   const [bakeWorldOnExport, setBakeWorldOnExport] = useState<boolean>(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Üst bardaki malzeme (PLA 0.25 / PETG 0.30 / ASA-ABS 0.35 mm) değiştiğinde tolerans eşiğini dinamik güncelle
+  useEffect(() => {
+    setToleranceMm(matSpec.toleranceMm);
+    setFixClearanceMm(matSpec.toleranceMm);
+  }, [matSpec.toleranceMm]);
 
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -499,9 +513,12 @@ export const SimulatorWorkspace: React.FC = () => {
     const exportGeo = buildExportableGeometry(target, bakeWorldOnExport);
     const cleanBase = target.name.replace(/\.stl$/i, '');
     const axisTag = fixAxis === 'auto' ? report.dominantAxis : fixAxis;
-    const filename = `${cleanBase}_duzeltilmis_${axisTag}_+${fixClearanceMm.toFixed(2)}mm.stl`;
+    const rawFilename = `${cleanBase}_duzeltilmis_${axisTag}_${fixClearanceMm.toFixed(2)}mm.stl`;
 
-    const { byteLength, savePromise } = downloadBinarySTL(exportGeo, filename);
+    const { filename, byteLength, savePromise } = downloadBinarySTL(
+      exportGeo,
+      rawFilename
+    );
     exportGeo.dispose();
 
     const kb = (byteLength / 1024).toFixed(1);
@@ -535,7 +552,7 @@ export const SimulatorWorkspace: React.FC = () => {
       />
 
       {/* ==================== SOL PANEL: STL YÜKLEME & HİZALAMA ==================== */}
-      <aside className="w-[340px] shrink-0 h-full bg-[#111720] border-r border-slate-800/90 flex flex-col overflow-hidden">
+      <aside className="relative z-20 w-[340px] shrink-0 h-full bg-[#111720] border-r border-slate-800/90 flex flex-col overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800/90 bg-[#0f151e] flex items-center justify-between">
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
@@ -912,7 +929,7 @@ export const SimulatorWorkspace: React.FC = () => {
       />
 
       {/* ==================== SAĞ PANEL: ANALİZ, SİMÜLASYON & OTO DÜZELTME ==================== */}
-      <aside className="w-[330px] shrink-0 h-full bg-[#111720] border-l border-slate-800/90 flex flex-col overflow-hidden">
+      <aside className="relative z-20 w-[330px] shrink-0 h-full bg-[#111720] border-l border-slate-800/90 flex flex-col overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800/90 bg-[#0f151e]">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
             Çakışma & Hareket Simülatörü
@@ -936,18 +953,22 @@ export const SimulatorWorkspace: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5">
-              {[0.2, 0.3, 0.4].map((t) => (
+              {[
+                { label: 'PLA 0.25', v: 0.25 },
+                { label: 'PETG 0.30', v: 0.3 },
+                { label: 'ASA 0.35', v: 0.35 },
+              ].map((t) => (
                 <button
-                  key={t}
+                  key={t.label}
                   type="button"
-                  onClick={() => setToleranceMm(t)}
-                  className={`flex-1 py-1 text-[11px] font-mono rounded border transition-colors ${
-                    Math.abs(toleranceMm - t) < 0.005
+                  onClick={() => setToleranceMm(t.v)}
+                  className={`flex-1 py-1 text-[10px] font-mono rounded border transition-colors ${
+                    Math.abs(toleranceMm - t.v) < 0.005
                       ? 'bg-amber-500/20 text-amber-200 border-amber-500/50'
                       : 'bg-[#0b0f14] text-slate-400 border-slate-800 hover:text-slate-200'
                   }`}
                 >
-                  {t.toFixed(2)} mm
+                  {t.label}
                 </button>
               ))}
             </div>

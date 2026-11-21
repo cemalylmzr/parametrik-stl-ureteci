@@ -8,6 +8,7 @@ import {
   ensureCW,
   isRingStrictlyInside,
 } from './manifoldBuilder';
+import { applyBoxCutoutsCSG } from './boxCutouts';
 
 export function generateParametricBox(
   params: ParametricBoxParams
@@ -266,9 +267,13 @@ export function generateParametricBox(
     }
   }
 
+  const baseGeometry = builder.toBufferGeometry();
+  const csgResult = applyBoxCutoutsCSG(baseGeometry, params, warnings);
+
   return {
-    geometry: builder.toBufferGeometry(),
+    geometry: csgResult.geometry,
     warnings,
-    holeCount: totalHoles,
+    holeCount: totalHoles + csgResult.appliedCount,
+    ghostMeshes: csgResult.ghostMeshes,
   };
 }

@@ -6,6 +6,7 @@ export interface MaterialSpec {
   id: MaterialType;
   label: string;
   densityGPerCm3: number;
+  toleranceMm: number;
   nozzleTempC: string;
   bedTempC: string;
 }
@@ -15,6 +16,7 @@ export const MATERIALS: Record<MaterialType, MaterialSpec> = {
     id: 'PLA',
     label: 'PLA',
     densityGPerCm3: 1.24,
+    toleranceMm: 0.25,
     nozzleTempC: '215°C',
     bedTempC: '55°C',
   },
@@ -22,20 +24,23 @@ export const MATERIALS: Record<MaterialType, MaterialSpec> = {
     id: 'PETG',
     label: 'PETG',
     densityGPerCm3: 1.27,
+    toleranceMm: 0.30,
     nozzleTempC: '245°C',
     bedTempC: '75°C',
-  },
-  ABS: {
-    id: 'ABS',
-    label: 'ABS',
-    densityGPerCm3: 1.04,
-    nozzleTempC: '255°C',
-    bedTempC: '100°C',
   },
   ASA: {
     id: 'ASA',
     label: 'ASA',
     densityGPerCm3: 1.07,
+    toleranceMm: 0.35,
+    nozzleTempC: '255°C',
+    bedTempC: '100°C',
+  },
+  ABS: {
+    id: 'ABS',
+    label: 'ABS',
+    densityGPerCm3: 1.04,
+    toleranceMm: 0.35,
     nozzleTempC: '255°C',
     bedTempC: '100°C',
   },
@@ -43,6 +48,7 @@ export const MATERIALS: Record<MaterialType, MaterialSpec> = {
     id: 'TPU',
     label: 'TPU',
     densityGPerCm3: 1.21,
+    toleranceMm: 0.30,
     nozzleTempC: '225°C',
     bedTempC: '45°C',
   },
@@ -63,6 +69,41 @@ export interface HoneycombSieveParams {
   curveSegments: number;
 }
 
+export type BoxHoleShape = 'cylinder' | 'box' | 'hexagon' | 'slot';
+export type BoxHoleOrientation = 'z' | 'x' | 'y';
+export type BoxHoleDepthMode = 'through' | 'blind';
+export type BoxCoordOrigin = 'center' | 'corner';
+export type BoxHoleTarget = 'box' | 'lid';
+
+export interface BoxCutoutHole {
+  id: string;
+  name: string;
+  enabled: boolean;
+  target: BoxHoleTarget;
+  shape: BoxHoleShape;
+  orientation: BoxHoleOrientation;
+  depthMode: BoxHoleDepthMode;
+  coordOrigin: BoxCoordOrigin;
+  x: number;
+  y: number;
+  z: number;
+  diameter: number;
+  rectWidth: number;
+  rectLength: number;
+  hexFlatToFlat: number;
+  slotWidth: number;
+  slotLength: number;
+  depth: number;
+  rotationDeg: number;
+}
+
+export interface CutoutGhostMesh {
+  id: string;
+  name: string;
+  geometry: import('three').BufferGeometry;
+  enabled: boolean;
+}
+
 export interface ParametricBoxParams {
   width: number;          // Dış X genişliği, mm
   depth: number;          // Dış Y derinliği, mm
@@ -81,6 +122,7 @@ export interface ParametricBoxParams {
   cableHoleThreaded: boolean;
   cableHolePitch: number;
   cableHoleTolerance: number;
+  cutouts: BoxCutoutHole[];  // CSG parametrik çoklu delik / kesim listesi
 }
 
 export interface MountingPlateParams {
@@ -178,6 +220,7 @@ export interface GeometryResult {
   geometry: import('three').BufferGeometry;
   warnings: string[];
   holeCount?: number;
+  ghostMeshes?: CutoutGhostMesh[];
 }
 
 export interface ViewportOptions {
@@ -221,6 +264,7 @@ export const DEFAULT_BOX_PARAMS: ParametricBoxParams = {
   cableHoleThreaded: false,
   cableHolePitch: 1.75,
   cableHoleTolerance: 0.3,
+  cutouts: [],
 };
 
 export const DEFAULT_PLATE_PARAMS: MountingPlateParams = {

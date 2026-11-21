@@ -212,7 +212,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({
           : FASTENER_PRESETS.length;
 
   return (
-    <aside className="w-[340px] shrink-0 h-full bg-[#111720] border-r border-slate-800/90 flex flex-col overflow-hidden">
+    <aside className="relative z-20 w-[340px] shrink-0 h-full bg-[#111720] border-r border-slate-800/90 flex flex-col overflow-hidden">
       {/* Panel Başlığı */}
       <div className="px-4 py-3 border-b border-slate-800/90 flex items-center justify-between bg-[#0f151e]">
         <div>

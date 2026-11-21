@@ -110,6 +110,47 @@ export function geometryToBinarySTL(
   return arrayBuffer;
 }
 
+const TURKISH_CHAR_MAP: Record<string, string> = {
+  ç: 'c',
+  Ç: 'C',
+  ğ: 'g',
+  Ğ: 'G',
+  ı: 'i',
+  İ: 'I',
+  ö: 'o',
+  Ö: 'O',
+  ş: 's',
+  Ş: 'S',
+  ü: 'u',
+  Ü: 'U',
+};
+
+/**
+ * Dışa aktarılan tüm STL dosya adlarını Türkçe karakter içermeyen
+ * `AD5X_parca_adi.stl` ASCII formatına dönüştürür (FlashPrint / Orca-Flashforge uyumlu).
+ */
+export function sanitizeAD5XFilename(rawName: string): string {
+  const withoutExt = rawName.replace(/\.stl$/i, '');
+  const transliterated = withoutExt.replace(
+    /[çÇğĞıİöÖşŞüÜ]/g,
+    (ch) => TURKISH_CHAR_MAP[ch] ?? ch
+  );
+  let cleaned = transliterated
+    .replace(/\+/g, 'plus')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (!cleaned) cleaned = 'parca';
+  if (!cleaned.toUpperCase().startsWith('AD5X_')) {
+    cleaned = `AD5X_${cleaned}`;
+  } else {
+    cleaned = `AD5X_${cleaned.slice(5)}`;
+  }
+
+  return `${cleaned}.stl`;
+}
+
 /**
  * BufferGeometry'yi Binary STL dosyası olarak tarayıcıdan indirir ve
  * yerel masaüstü sunucusu aktifse aynı zamanda `exports/` dizinine otomatik kaydeder.
@@ -118,13 +159,12 @@ export function downloadBinarySTL(
   geometry: THREE.BufferGeometry,
   filename: string
 ): {
+  filename: string;
   byteLength: number;
   triangleCount: number;
   savePromise: Promise<string | null>;
 } {
-  const safeName = filename.toLowerCase().endsWith('.stl')
-    ? filename
-    : `${filename}.stl`;
+  const safeName = sanitizeAD5XFilename(filename);
 
   const buffer = geometryToBinarySTL(geometry);
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
@@ -156,6 +196,7 @@ export function downloadBinarySTL(
     .catch(() => null);
 
   return {
+    filename: safeName,
     byteLength: buffer.byteLength,
     triangleCount: (buffer.byteLength - 84) / 50,
     savePromise,
